@@ -1,0 +1,281 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VIT Private Portal</title>
+
+  <style>
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: Arial, sans-serif;
+      background: linear-gradient(135deg, #101827, #172d50);
+      color: white;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+    }
+
+    .card {
+      width: 100%;
+      max-width: 440px;
+      background: #ffffff;
+      color: #182235;
+      padding: 36px;
+      border-radius: 18px;
+      text-align: center;
+      box-shadow: 0 20px 60px #0005;
+    }
+
+    .logo {
+      width: 64px;
+      height: 64px;
+      background: #e8efff;
+      color: #2457d6;
+      border-radius: 18px;
+      display: grid;
+      place-items: center;
+      font-size: 30px;
+      margin: 0 auto 20px;
+    }
+
+    h1 { font-size: 25px; margin-bottom: 10px; }
+    p { color: #64748b; line-height: 1.6; }
+
+    button {
+      width: 100%;
+      padding: 14px;
+      border: 0;
+      border-radius: 10px;
+      cursor: pointer;
+      font-size: 15px;
+      font-weight: bold;
+      margin-top: 18px;
+    }
+
+    .google {
+      background: #2457d6;
+      color: white;
+    }
+
+    .logout {
+      background: #edf1f7;
+      color: #26364c;
+    }
+
+    button:disabled { opacity: .6; cursor: wait; }
+
+    .hidden { display: none !important; }
+
+    .status {
+      padding: 12px;
+      border-radius: 9px;
+      font-size: 14px;
+      margin-top: 18px;
+      background: #f1f5f9;
+      color: #475569;
+      overflow-wrap: anywhere;
+    }
+
+    .success { background: #dcfce7; color: #166534; }
+    .error { background: #fee2e2; color: #991b1b; }
+
+    #dashboard {
+      max-width: 650px;
+    }
+
+    .content {
+      background: #f1f5f9;
+      border-radius: 12px;
+      padding: 22px;
+      text-align: left;
+      margin-top: 22px;
+    }
+
+    .content h2 { color: #1e40af; }
+    footer { margin-top: 25px; font-size: 12px; color: #94a3b8; }
+  </style>
+</head>
+
+<body>
+
+  <main class="card" id="login">
+    <div class="logo">🔐</div>
+    <h1>VIT Private Portal</h1>
+    <p>
+      This website is restricted to authorized users.
+      Please verify your identity using your approved Google account.
+    </p>
+
+    <button class="google" id="loginBtn">
+      Continue with Google
+    </button>
+
+    <div id="loginStatus" class="status hidden"></div>
+    <footer>Secure Google Authentication</footer>
+  </main>
+
+  <main class="card hidden" id="dashboard">
+    <div class="logo">✓</div>
+    <h1>Welcome to the Portal</h1>
+    <p>Google identity successfully verified.</p>
+
+    <div class="status success" id="userEmail"></div>
+
+    <section class="content">
+      <h2 id="pageTitle">Private Dashboard</h2>
+      <p id="pageBody">
+        Loading your protected content...
+      </p>
+    </section>
+
+    <button class="logout" id="logoutBtn">Sign Out</button>
+    <footer>Authorized access only</footer>
+  </main>
+
+  <main class="card hidden" id="denied">
+    <div class="logo">🚫</div>
+    <h1>Access Denied</h1>
+    <p>
+      Your Google account is not on the approved access list.
+      Please sign in using an authorized account.
+    </p>
+    <div class="status error" id="deniedEmail"></div>
+    <button class="logout" id="retryBtn">Try Another Account</button>
+  </main>
+
+  <script type="module">
+    import { initializeApp } from
+      "https://www.gstatic.com/firebasejs/11.6.0/firebase-app.js";
+
+    import {
+      getAuth,
+      GoogleAuthProvider,
+      signInWithPopup,
+      signOut,
+      onAuthStateChanged
+    } from
+      "https://www.gstatic.com/firebasejs/11.6.0/firebase-auth.js";
+
+    import {
+      getFirestore,
+      doc,
+      getDoc
+    } from
+      "https://www.gstatic.com/firebasejs/11.6.0/firebase-firestore.js";
+
+    // REPLACE WITH YOUR FIREBASE CONFIGURATION
+    const firebaseConfig = {
+  apiKey: "AIzaSyBPJQYsLJOYqASzWbOU9U57iyz9jSr8fAA",
+  authDomain: "epics-mark-entry.firebaseapp.com",
+  projectId: "epics-mark-entry",
+  storageBucket: "epics-mark-entry.firebasestorage.app",
+  messagingSenderId: "839120502721",
+  appId: "1:839120502721:web:df0afe513404ba64087940",
+  measurementId: "G-CZFRHJRJ2C"
+};
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    const provider = new GoogleAuthProvider();
+    provider.setCustomParameters({
+      prompt: "select_account"
+    });
+
+    const allowedEmails = [
+      "rajdeep.payal@vitbhopal.ac.in",
+      "pradeep.kashyap@vitbhopal.ac.in",
+      "navneet.verma@vitbhopal.ac.in",
+      "ashok.patel@vitbhopal.ac.in"
+    ];
+
+    const $ = id => document.getElementById(id);
+
+    function showOnly(section) {
+      ["login", "dashboard", "denied"].forEach(id => {
+        $(id).classList.toggle("hidden", id !== section);
+      });
+    }
+
+    function showStatus(message, isError = false) {
+      const status = $("loginStatus");
+      status.textContent = message;
+      status.classList.remove("hidden", "error");
+      if (isError) status.classList.add("error");
+    }
+
+    $("loginBtn").addEventListener("click", async () => {
+      $("loginBtn").disabled = true;
+      showStatus("Connecting to Google...");
+
+      try {
+        await signInWithPopup(auth, provider);
+      } catch (error) {
+        showStatus(error.message, true);
+      } finally {
+        $("loginBtn").disabled = false;
+      }
+    });
+
+    onAuthStateChanged(auth, async user => {
+      if (!user) {
+        showOnly("login");
+        return;
+      }
+
+      const email = (user.email || "").toLowerCase();
+
+      if (
+        !user.emailVerified ||
+        !allowedEmails.includes(email)
+      ) {
+        $("deniedEmail").textContent = email || "Unknown account";
+        showOnly("denied");
+        //await signOut(auth);
+        return;
+      }
+
+      $("userEmail").textContent = "Verified account: " + email;
+
+      showOnly("dashboard");
+
+      try {
+        // Content is fetched only after authentication.
+        // Firestore rules independently enforce the allowlist.
+        const snapshot = await getDoc(doc(db, "private", "site"));
+
+        if (snapshot.exists()) {
+          const data = snapshot.data();
+          $("pageTitle").textContent =
+            data.title || "Private Dashboard";
+          $("pageBody").textContent =
+            data.body || "Welcome to your private portal.";
+        } else {
+          $("pageBody").textContent =
+            "Your account is authorized, but no dashboard content has been added yet.";
+        }
+      } catch (error) {
+        $("pageBody").textContent =
+          "Could not load protected content. Check your Firebase configuration and security rules.";
+        console.error(error);
+      }
+    });
+
+    $("logoutBtn").addEventListener("click", async () => {
+      await signOut(auth);
+    });
+
+    $("retryBtn").addEventListener("click", async () => {
+      await signOut(auth);
+      showOnly("login");
+    });
+  </script>
+</body>
+</html>
