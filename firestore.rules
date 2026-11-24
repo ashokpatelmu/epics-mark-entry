@@ -10,7 +10,8 @@ service cloud.firestore {
         && request.auth.token.email in [
           'rajdeep.payal@vitbhopal.ac.in',
           'pradeep.kashyap@vitbhopal.ac.in',
-          'navneet.verma@vitbhopal.ac.in'
+          'navneet.verma@vitbhopal.ac.in',
+          'ashok.patel@vitbhopal.ac.in',
         ];
     }
 
